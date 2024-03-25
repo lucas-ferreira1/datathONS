@@ -9,7 +9,13 @@ import warnings
 warnings.filterwarnings("ignore")  # Remove
 
 
-def main(special_day: str):
+def main(special_day: str) -> np.ndarray:
+    """
+    Determines the historical average behavior of the liquid global charge, for the special_day
+    considered
+
+    :param special_day: Special_day for which the function is calculated.
+    """
     # Reads the database
     file = "databases/dados_carga_diasespeciais.xlsx"
 
@@ -78,7 +84,14 @@ def main(special_day: str):
     fig, ax = plt.subplots()
     x_ax = [x / 2 for x in range(48)]
     ax.plot(x_ax, carga_global_media)
+
+    plt.title(f"Global liquid power: {special_day}")
+    plt.xlabel("Time (h)")
+    plt.ylabel("Power (MW)")
+    plt.grid()
+
     plt.show()
+
     return carga_global_media
 
 
@@ -96,5 +109,6 @@ def same_day(x: datetime, y: datetime) -> bool:
 
 
 if __name__ == "__main__":
-    special_day = "Dia de Sao Sebastiao"
+    special_day = "Carnaval"
+    print(f"Special Day: {special_day}")
     print(main(special_day=special_day))
