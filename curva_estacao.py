@@ -8,33 +8,63 @@ Created on Sun Mar 24 11:10:26 2024
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from datetime import time
+from datetime import timedelta
 
 #Ler arquivo csv e fazer dataframe
-file_carga = 'databases/dados_carga.csv'
-file_diasespeciais = 'databases/dados_diaespecial.csv'
+#file_carga = 'databases/dados_carga.csv'
+file_diasespeciais = 'databases/dados_carga_diasespeciais_v3.xlsx'
 
-df = pd.read_csv(file_carga,sep = ';',index_col=2)
-df.index = pd.to_datetime(df.index)
+#df = pd.read_csv(file_carga,sep = ';',index_col=2)
+#df.index = pd.to_datetime(df.index)
 
-#Teria que ter tratamento de excluir fds e dias especiais
+df = pd.read_excel(file_diasespeciais,index_col = 1)
 
 df=df.astype(str)
-df.iloc[:,[2,3,4,5,6,7,8,9]]=df.iloc[:,[2,3,4,5,6,7,8,9]].applymap(lambda x: x.replace(',', '.')).astype(float)
+df.iloc[:,[1,2,3,4,5,6,7,8]]=df.iloc[:,[1,2,3,4,5,6,7,8]].applymap(lambda x: x.replace(',', '.')).astype(float)
+df.index = pd.to_datetime(df.index)
+
+#Tratamento referência utc
+df.index = df.index - timedelta(hours=3)
+
+#Tratamento de excluir dias especiais
+df = df[df['Data especial']=='nan']
+
+
 #Condições de estações
 df = df[df['cod_areacarga']=='SECO'] #Selecionando o sudeste
 df = df[df.index.year == 2023] #Selecionando 2023
-df = df.drop(['cod_areacarga','dat_referencia'], axis = 1)
+
+df = df.drop(['cod_areacarga'], axis = 1)
+
+dias_num = range(7)
+dias_nome = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+dias_ptbr = ['Segunda','Terca','Quarta','Quinta','Sexta','Sabado','Domingo']
 
 df_estacoes = {}
-df_estacoes['outono']=df.loc[df.index[df.index.month>3][0]:df.index[df.index.month<=6][-1]]
-df_estacoes['inverno']=df.loc[df.index[df.index.month>6][0]:df.index[df.index.month<=9][-1]]
-df_estacoes['primavera']=df.loc[df.index[df.index.month>9][0]:df.index[df.index.month<=12][-1]]
-df_estacoes['verao']=df.loc[df.index[df.index.month==1][0]:df.index[df.index.month<=3][-1]]
+for n in dias_num:
+    dia = dias_ptbr[n]
+    df_estacoes[dia]={}
+    #outono
+    df_estacoes[dia]['outono']=df.loc[df.index[df.index.month>3][0]:df.index[df.index.month<=6][-1]]
+    df_estacoes[dia]['outono']=df_estacoes[dia]['outono'][df_estacoes[dia]['outono']['day_of_week'] == dias_nome[n]]
+    #inverno
+    df_estacoes[dia]['inverno']=df.loc[df.index[df.index.month>6][0]:df.index[df.index.month<=9][-1]]
+    df_estacoes[dia]['inverno']=df_estacoes[dia]['inverno'][df_estacoes[dia]['inverno']['day_of_week'] == dias_nome[n]]
+    #primavera
+    df_estacoes[dia]['primavera']=df.loc[df.index[df.index.month>9][0]:df.index[df.index.month<=12][-1]]
+    df_estacoes[dia]['primavera']=df_estacoes[dia]['primavera'][df_estacoes[dia]['primavera']['day_of_week'] == dias_nome[n]]
+    #verao
+    df_estacoes[dia]['verao']=df.loc[df.index[df.index.month==1][0]:df.index[df.index.month<=3][-1]]
+    df_estacoes[dia]['verao']=df_estacoes[dia]['verao'][df_estacoes[dia]['verao']['day_of_week'] == dias_nome[n]]
+    
+#df_estacoes['outono']=df.loc[df.index[df.index.month>3][0]:df.index[df.index.month<=6][-1]]
+#df_estacoes['inverno']=df.loc[df.index[df.index.month>6][0]:df.index[df.index.month<=9][-1]]
+#df_estacoes['primavera']=df.loc[df.index[df.index.month>9][0]:df.index[df.index.month<=12][-1]]
+#df_estacoes['verao']=df.loc[df.index[df.index.month==1][0]:df.index[df.index.month<=3][-1]]
 
 
 #Teste das curvas semi-horária de carga verificada
-df_teste = df_estacoes['outono'][df_estacoes['outono'].index.date.astype(str) == '2023-04-01']
+df_teste = df_estacoes['Sabado']['verao'][df_estacoes['Sabado']['verao'].index.date.astype(str) == '2023-01-07']
 
 plt.plot(df_teste.index,df_teste['val_cargaglobal'],label = 'Carga Global')
 plt.plot(df_teste.index,df_teste['val_cargaglobalsmmgd'],label = 'Carga Global Líquida MMGD')
@@ -43,24 +73,29 @@ plt.plot(df_teste.index,df_teste['val_cargaglobal']-df_teste['val_cargammgd'],la
 plt.xticks(rotation=45)
 plt.xlabel('Tempo')
 plt.ylabel('Valor Carga Global(MWmed)')
-plt.title('Curva de Carga líquida média em dia de primavera 2023')
+plt.title('Curva de Carga em Sábado no verao de 2023')
 plt.legend()
 plt.show()
 
 #Média pra cada estação (TEM QUE EVOLUIR PRA TER PRA CADA DIA TBM USANDO ARQUIVO DOS MENINOS)
 df_estacoesmed = {}
-for est in df_estacoes:
-    df_estacoesmed[est] = pd.DataFrame(columns=df_estacoes[est].columns)
-    tempos1 = np.unique(df_estacoes[est].index.time)
-    tempos_i = np.unique(df_estacoes[est].index.hour + df_estacoes[est].index.minute/60)
-    for i in range(48):
-        df_estacoesmed[est].loc[tempos_i[i]]=df_estacoes[est][df_estacoes[est].index.time == tempos1[i]].mean()
+for dia in df_estacoes:
+    df_estacoesmed[dia]={}
+    for est in df_estacoes[dia]:
+        df_estacoesmed[dia][est] = pd.DataFrame(columns=df_estacoes[dia][est].columns).drop(['Data especial','day_of_week'],axis=1)
+        tempos1 = np.unique(df_estacoes[dia][est].index.time)
+        tempos_i = np.unique(df_estacoes[dia][est].index.hour + df_estacoes[dia][est].index.minute/60)
+        for i in range(48):
+            df_estacoesmed[dia][est].loc[tempos_i[i]]=df_estacoes[dia][est][df_estacoes[dia][est].index.time == tempos1[i]].drop(['Data especial','day_of_week'],axis=1).mean()
 
-for est in df_estacoesmed:
-    plt.plot(df_estacoesmed[est].index,df_estacoesmed[est]['val_cargaglobal'])
+for dia in df_estacoes:
+    for est in df_estacoesmed[dia]:
+        plt.plot(df_estacoesmed[dia][est].index,df_estacoesmed[dia][est]['val_cargaglobal'],label = est)
+    
     plt.xlabel('Tempo (h)')
     plt.ylabel('Valor Carga Global(MWmed)')
-    plt.title('Curva de Carga líquida média em dia de '+ str(est)+ ' 2023')
+    plt.title('Curva global média típica SECO no dia de '+ str(dia)+ ' em 2023')
+    plt.legend()
     plt.show()
 
 
