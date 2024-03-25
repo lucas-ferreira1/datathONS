@@ -8,12 +8,15 @@ libraries = [
     "pandas",
     "matplotlib",
     "scipy",
-    "sympy"
+    "sympy",
+    "openpyxl",
 ]
+
 
 # Função para instalar uma biblioteca
 def install_library(library):
     os.system(f"pip install {library}")
+
 
 # Iterar sobre a lista de bibliotecas e instalá-las uma por uma
 for lib in libraries:
