@@ -99,6 +99,9 @@ for dia in df_estacoes:
     plt.show()
 
 
+df_estacoesmed['Sabado']['verao'].to_excel('databases/curva_media_sabado_verao.xlsx')
+
+
 #Código antigo
 '''
 #Média do outono
